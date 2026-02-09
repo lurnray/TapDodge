@@ -9,7 +9,7 @@ public class PlayerController : MonoBehaviour
     private int currentLane = 0; // 0 = left, 1 = right
 
     [Header("Shield Feature")]
-    [SerializeField] private float shieldDuration = 3f;
+    [SerializeField] private float shieldDuration = 5f;
     [SerializeField] private float shieldCooldown = 20f;
 
     private bool isShieldActive = false;

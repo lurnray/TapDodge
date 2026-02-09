@@ -35,7 +35,7 @@ public class ScoreSystem : MonoBehaviour
     public void AddScore(int amount)
     {
         Score += amount;
-    Debug.Log("Score: " + Score);
+    // Debug.Log("Score: " + Score);
     OnScoreChanged?.Invoke(Score);
     }
 
