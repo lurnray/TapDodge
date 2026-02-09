@@ -33,16 +33,11 @@ public class AchievementToast : MonoBehaviour
 
     private IEnumerator ShowRoutine(string title, string desc)
     {
-        titleText.text = $"🏆 {title}";
-        descText.text = desc;
+        if (titleText != null) titleText.text = $"🏆 {title}";
+        if (descText != null) descText.text = desc;
 
-        // Fade in
         yield return FadeTo(1f, fadeIn);
-
-        // Hold
         yield return new WaitForSeconds(hold);
-
-        // Fade out
         yield return FadeTo(0f, fadeOut);
 
         routine = null;

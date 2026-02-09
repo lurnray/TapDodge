@@ -1,17 +1,21 @@
 using UnityEngine;
-using System.Collections;
 
 public class AchievementSystem : MonoBehaviour
 {
     public static AchievementSystem Instance;
 
     [Header("UI")]
-    [SerializeField] private AchievementToast toast; // optional but recommended
+    [SerializeField] private AchievementToast toast;
 
-    // Achievement IDs
+    // IDs saved in PlayerPrefs (persistent)
     private const string FIRST_RUN = "ACH_FIRST_RUN";
-    private const string SCORE_20 = "ACH_SCORE_20";
-    private const string SCORE_50 = "ACH_SCORE_50";
+    private const string SCORE_20  = "ACH_SCORE_20";
+    private const string SCORE_50  = "ACH_SCORE_50";
+
+    // Per-run flags (repeatable toasts every run)
+    private bool shownFirstRunThisRun = false;
+    private bool shownScore20ThisRun  = false;
+    private bool shownScore50ThisRun  = false;
 
     void Awake()
     {
@@ -27,10 +31,21 @@ public class AchievementSystem : MonoBehaviour
             ScoreSystem.Instance.OnScoreChanged.AddListener(OnScoreChanged);
         }
 
-        // Unlock First Run once, when the game begins playing
-        if (GameManager.Instance != null && GameManager.Instance.State == GameState.Playing)
+        // If you have GameManager events, reset flags at the start of a run
+        if (GameManager.Instance != null)
         {
-            TryUnlock(FIRST_RUN, "First Run", "Started your first run");
+            GameManager.Instance.OnStateChanged += OnGameStateChanged;
+
+            // If the scene starts already in Playing, count it as a new run:
+            if (GameManager.Instance.State == GameState.Playing)
+            {
+                BeginRun();
+            }
+        }
+        else
+        {
+            // Fallback: treat Start as run start
+            BeginRun();
         }
     }
 
@@ -40,26 +55,74 @@ public class AchievementSystem : MonoBehaviour
         {
             ScoreSystem.Instance.OnScoreChanged.RemoveListener(OnScoreChanged);
         }
+
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.OnStateChanged -= OnGameStateChanged;
+        }
+    }
+
+    private void OnGameStateChanged(GameState state)
+    {
+        if (state == GameState.Playing)
+        {
+            BeginRun();
+        }
+    }
+
+    // Called at the start of every run (repeatable behavior)
+    private void BeginRun()
+    {
+        // Reset per-run toast flags
+        shownFirstRunThisRun = false;
+        shownScore20ThisRun = false;
+        shownScore50ThisRun = false;
+
+        // Show First Run toast once per run
+        if (!shownFirstRunThisRun)
+        {
+            shownFirstRunThisRun = true;
+            TryUnlockOrToast(FIRST_RUN, "First Run", "Started your run");
+        }
     }
 
     private void OnScoreChanged(int score)
     {
-        if (score >= 20) TryUnlock(SCORE_20, "Score 20", "Reached score 20");
-        if (score >= 50) TryUnlock(SCORE_50, "Score 50", "Reached score 50");
+        // Show each toast at most once per run
+        if (score >= 20 && !shownScore20ThisRun)
+        {
+            shownScore20ThisRun = true;
+            TryUnlockOrToast(SCORE_20, "Score 20", "Reached score 20");
+        }
+
+        if (score >= 50 && !shownScore50ThisRun)
+        {
+            shownScore50ThisRun = true;
+            TryUnlockOrToast(SCORE_50, "Score 50", "Reached score 50");
+        }
     }
 
-    private void TryUnlock(string id, string title, string description)
+    // Persist unlock once, but allow repeatable toasts each run
+    private void TryUnlockOrToast(string id, string title, string description)
     {
-        if (PlayerPrefs.GetInt(id, 0) == 1) return;
+        bool alreadyUnlocked = PlayerPrefs.GetInt(id, 0) == 1;
 
-        PlayerPrefs.SetInt(id, 1);
-        PlayerPrefs.Save();
-
-        Debug.Log($"Achievement Unlocked: {title}");
-
+        // Always show toast when condition is reached in this run
         if (toast != null)
         {
             toast.Show(title, description);
+        }
+
+        // Save unlock only the first time ever
+        if (!alreadyUnlocked)
+        {
+            PlayerPrefs.SetInt(id, 1);
+            PlayerPrefs.Save();
+            Debug.Log($"Achievement Unlocked (saved): {title}");
+        }
+        else
+        {
+            Debug.Log($"Achievement Reached (repeatable toast): {title}");
         }
     }
 }
